@@ -1,0 +1,37 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+
+[[mods]]
+modId="craftersstorm"
+version="1.0.0"
+displayName="Crafters Storm"
+authors="Crafters CR"
+description='''
+Sistema de tormenta Battle Royale con cierres aleatorios,
+tiempos configurables e integración con Xaero's Minimap.
+'''
+
+[[dependencies.craftersstorm]]
+modId="neoforge"
+type="required"
+versionRange="[21.1,21.2)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.craftersstorm]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1,1.21.2)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.craftersstorm]]
+modId="xaerominimap"
+type="optional"
+versionRange="[25.3.13]"
+ordering="AFTER"
+side="CLIENT"
+
+[[mixins]]
+config="craftersstorm.mixins.json"

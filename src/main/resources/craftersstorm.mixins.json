@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "org.crafterscr.craftersstorm.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "HighlighterRegistryMixin",
+    "DimensionHighlighterMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
