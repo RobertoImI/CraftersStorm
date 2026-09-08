@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public record StormPayload(
         boolean active,
+        boolean damaging,
         double x,
         double z,
         double size,
@@ -16,7 +17,7 @@ public record StormPayload(
 ) implements CustomPacketPayload {
 
     public static final StormPayload EMPTY =
-            new StormPayload(false, 0, 0, 0, 0, 0, 0);
+            new StormPayload(false, false, 0, 0, 0, 0, 0, 0);
 
     public static final Type<StormPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(
@@ -30,6 +31,7 @@ public record StormPayload(
                 @Override
                 public StormPayload decode(RegistryFriendlyByteBuf buffer) {
                     return new StormPayload(
+                            buffer.readBoolean(),
                             buffer.readBoolean(),
                             buffer.readDouble(),
                             buffer.readDouble(),
@@ -46,6 +48,7 @@ public record StormPayload(
                         StormPayload value
                 ) {
                     buffer.writeBoolean(value.active());
+                    buffer.writeBoolean(value.damaging());
                     buffer.writeDouble(value.x());
                     buffer.writeDouble(value.z());
                     buffer.writeDouble(value.size());

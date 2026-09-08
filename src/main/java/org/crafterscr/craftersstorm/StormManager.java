@@ -15,6 +15,7 @@ import java.util.Random;
 
 import static org.crafterscr.craftersstorm.StormData.Mode;
 
+
 public final class StormManager {
     private final MinecraftServer server;
     private final ServerLevel level;
@@ -103,6 +104,7 @@ public final class StormManager {
             );
         }
 
+        CraftersStorm.match().reset();
         s.initialX = b.getCenterX();
         s.initialZ = b.getCenterZ();
         s.initialSize = initialSize;
@@ -246,9 +248,7 @@ public final class StormManager {
 
         announce(String.format(
                 Locale.ROOT,
-                "Proxima zona %d/%d: centro X %.0f, Z %.0f; lado %.1f.",
-                s.phaseIndex + 1,
-                s.phases.size(),
+                "Próxima zona: centro X %.0f, Z %.0f; lado %.1f.",
                 s.targetX,
                 s.targetZ,
                 s.targetSize
@@ -265,6 +265,14 @@ public final class StormManager {
         s.duration = phase().closeSeconds() * 20L;
 
         announce("La tormenta comienza a cerrarse.");
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            p.playNotifySound(net.minecraft.sounds.SoundEvents.ELDER_GUARDIAN_CURSE,
+                    net.minecraft.sounds.SoundSource.PLAYERS, 0.7F, 1.0F);
+        }
+    }
+
+    public void freezeForVictory() {
+        requireActive(); s.paused = true; data.setDirty(); sync();
     }
 
     public void pause() {
@@ -282,6 +290,7 @@ public final class StormManager {
 
     public void resume() {
         requireActive();
+        if (CraftersStorm.match().celebrating()) throw new IllegalStateException("La partida ya terminó; espera el regreso al lobby.");
 
         if (!s.paused) {
             throw new IllegalStateException("La tormenta no esta pausada.");
@@ -307,6 +316,7 @@ public final class StormManager {
         data.setDirty();
 
         bar.removeAllPlayers();
+        CraftersStorm.match().onStormStopped();
         announce("Tormenta detenida. Borde anterior restaurado.");
         sync();
     }
@@ -389,7 +399,7 @@ public final class StormManager {
         double half = s.size / 2.0;
 
         for (ServerPlayer player : level.players()) {
-            if (!player.isAlive() || player.isCreative() || player.isSpectator()) {
+            if (!CraftersStorm.match().alive(player) || !player.isAlive() || player.isCreative() || player.isSpectator()) {
                 continue;
             }
 
@@ -435,46 +445,17 @@ public final class StormManager {
             default -> "";
         };
 
-        return "Tormenta " + (s.phaseIndex + 1) + "/" + s.phases.size()
-                + " | " + state
+        return "Tormenta | " + state
                 + (s.paused ? " | PAUSADA" : "");
     }
 
     private void sync() {
-        if (active()) {
-            var audience = new HashSet<>(level.players());
-
-            for (ServerPlayer player : new HashSet<>(bar.getPlayers())) {
-                if (!audience.contains(player)) {
-                    bar.removePlayer(player);
-                }
-            }
-
-            for (ServerPlayer player : audience) {
-                bar.addPlayer(player);
-            }
-
-            bar.setName(Component.literal(title()));
-            bar.setColor(
-                    s.paused ? BossEvent.BossBarColor.YELLOW
-                            : BossEvent.BossBarColor.PURPLE
-            );
-
-            float progress = s.duration == 0
-                    ? 1
-                    : (float) Math.max(
-                    0,
-                    1.0 - s.elapsed / (double) s.duration
-            );
-
-            bar.setProgress(progress);
-        } else {
-            bar.removeAllPlayers();
-        }
+        bar.removeAllPlayers(); // The timer is now displayed below the minimap.
 
         StormPayload payload = active()
                 ? new StormPayload(
                 true,
+                !s.paused && phase().damage() > 0,
                 s.x,
                 s.z,
                 s.size,
@@ -486,7 +467,9 @@ public final class StormManager {
 
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (player.connection.hasChannel(StormPayload.TYPE)) {
-                PacketDistributor.sendToPlayer(player, payload);
+                PacketDistributor.sendToPlayer(player, new StormPayload(
+                        payload.active(), payload.damaging() && CraftersStorm.match().alive(player),
+                        payload.x(), payload.z(), payload.size(), payload.targetX(), payload.targetZ(), payload.targetSize()));
             }
         }
     }
@@ -517,5 +500,25 @@ public final class StormManager {
         }
 
         return result.toString();
+    }
+
+    public boolean isActiveFor(MinecraftServer candidate) {
+        return server == candidate && active();
+    }
+    public boolean paused() { return s.paused; }
+    public int secondsRemaining() {
+        return active() ? (int)Math.max(0, (s.duration - s.elapsed + 19) / 20) : 0;
+    }
+    public String timerLabel() {
+        if (!active()) return "";
+        if (s.paused) return "Pausa";
+        return switch (s.mode) { case WAITING -> "Espera"; case CLOSING -> "Cierre"; default -> "Final"; };
+    }
+    public boolean insideInitial(ServerPlayer p) {
+        return insideInitial(p.getX(), p.getZ());
+    }
+    public boolean insideInitial(double x, double z) {
+        return s.configured && Math.abs(x - s.initialX) < s.initialSize/2
+                && Math.abs(z - s.initialZ) < s.initialSize/2;
     }
 }

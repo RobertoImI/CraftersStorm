@@ -3,9 +3,23 @@
   "minVersion": "0.8",
   "package": "org.crafterscr.craftersstorm.mixin",
   "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "WorldBorderMixin",
+    "DeathLootInvoker",
+    "TeamSpectatorCameraMixin"
+  ],
   "client": [
     "HighlighterRegistryMixin",
-    "DimensionHighlighterMixin"
+    "DimensionHighlighterMixin",
+    "MinimapHudMixin",
+    "MinimapHeightMixin",
+    "MinimapInfoMixin",
+    "SpectatorHandsMixin",
+    "SpectatorHotbarMixin",
+    "TeamRadarReaderMixin",
+    "TeamRadarRendererMixin",
+    "TeamTrackerReaderMixin",
+    "TeamTrackerRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

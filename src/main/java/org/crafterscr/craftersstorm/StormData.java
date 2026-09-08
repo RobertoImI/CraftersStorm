@@ -30,6 +30,7 @@ public final class StormData extends SavedData {
     }
 
     public static final class Values {
+        public org.crafterscr.craftersstorm.match.MatchState match = new org.crafterscr.craftersstorm.match.MatchState();
         public boolean configured;
         public double initialX;
         public double initialZ;
