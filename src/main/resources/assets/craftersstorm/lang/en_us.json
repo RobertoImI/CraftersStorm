@@ -1,5 +1,4 @@
 {
-  "itemGroup.craftersstorm": "Example Mod Tab",
-  "block.craftersstorm.example_block": "Example Block",
-  "item.craftersstorm.example_item": "Example Item"
+  "key.craftersstorm.self_revive": "Autorreanimarse",
+  "key.categories.craftersstorm": "Crafters Storm"
 }
