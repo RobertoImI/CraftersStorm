@@ -22,13 +22,23 @@ public final class MatchClient {
     private static int ticks;
     private static int lastPerspective = -1;
     private static int lastFov = -1;
+    private static boolean selfReviveHeld;
+
     private MatchClient() {}
 
     @SubscribeEvent
     public static void logout(ClientPlayerNetworkEvent.LoggingOut event) {
-        restore(); TeamView.clear(); SpectatorInventoryView.clear(); MatchView.receive(MatchPayload.EMPTY); ticks = 0;
-        lastPerspective = -1; lastFov = -1;
+        restore();
+        TeamView.clear();
+        SpectatorInventoryView.clear();
+        ReviveView.clear();
+        MatchView.receive(MatchPayload.EMPTY);
+        ticks = 0;
+        lastPerspective = -1;
+        lastFov = -1;
+        selfReviveHeld = false;
     }
+
     private static void restore() {
         Minecraft mc = Minecraft.getInstance();
         SpectatorPresentation.clear();
@@ -39,35 +49,66 @@ public final class MatchClient {
             savedPerspective = null;
         }
     }
+
     @SubscribeEvent
     public static void tick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
         if (ModList.get().isLoaded("xaerominimap")) XaeroTeamTracker.install();
         MatchPayload state = MatchView.get();
-        if (mc.player == null || mc.level == null || !state.running()) { restore(); SpectatorInventoryView.clear(); return; }
+
+        if (mc.player == null || mc.level == null || !state.running()) {
+            restore();
+            SpectatorInventoryView.clear();
+            ReviveView.clear();
+            selfReviveHeld = false;
+            return;
+        }
+
         ticks++;
+
+        RevivePayload revive = ReviveView.get();
+        boolean shouldSelfRevive = mc.screen == null
+                && state.participant()
+                && !state.eliminated()
+                && revive.downed()
+                && revive.selfReviveAvailable()
+                && ClientKeys.SELF_REVIVE.isDown();
+
+        if (shouldSelfRevive != selfReviveHeld) {
+            PacketDistributor.sendToServer(new MatchControl(shouldSelfRevive ? 2 : 3, 0, 0));
+            selfReviveHeld = shouldSelfRevive;
+        }
+
         if (state.participant() && !state.eliminated()) {
             restore();
             int perspective = mc.options.getCameraType().ordinal();
             int fov = mc.options.fov().get();
             if (ticks % 10 == 0 || perspective != lastPerspective || fov != lastFov) {
                 PacketDistributor.sendToServer(new MatchControl(0, perspective, fov));
-                lastPerspective = perspective; lastFov = fov;
+                lastPerspective = perspective;
+                lastFov = fov;
             }
         } else if (state.eliminated() && state.targetId() >= 0) {
             var target = mc.level.getEntity(state.targetId());
-            if (target == null) { restore(); return; } // Wait for tracked entity/chunks.
+            if (target == null) {
+                restore();
+                return;
+            }
             if (savedPerspective == null) {
-                savedPerspective = mc.options.getCameraType(); savedFov = mc.options.fov().get();
+                savedPerspective = mc.options.getCameraType();
+                savedFov = mc.options.fov().get();
             }
             mc.options.setCameraType(CameraType.values()[Math.max(0, Math.min(2, state.perspective()))]);
             mc.options.fov().set(Math.max(30, Math.min(110, state.fov())));
             mc.setCameraEntity(target);
             SpectatorPresentation.tick();
-            if (ticks % 20 == 0) mc.player.displayClientMessage(
-                    Component.literal("←  " + state.targetName() + "  →"), true);
-        } else restore();
+            if (ticks % 20 == 0)
+                mc.player.displayClientMessage(Component.literal("←  " + state.targetName() + "  →"), true);
+        } else {
+            restore();
+        }
     }
+
     @SubscribeEvent
     public static void key(InputEvent.Key event) {
         Minecraft mc = Minecraft.getInstance();
@@ -77,11 +118,12 @@ public final class MatchClient {
         int direction = event.getKey() == GLFW.GLFW_KEY_LEFT ? -1 : event.getKey() == GLFW.GLFW_KEY_RIGHT ? 1 : 0;
         if (direction != 0) PacketDistributor.sendToServer(new MatchControl(direction, 0, 70));
     }
+
     @SubscribeEvent
     public static void fallback(RenderGuiEvent.Post event) {
-        if (!ModList.get().isLoaded("xaerominimap") && MatchView.get().running()) {
-            var g = event.getGuiGraphics();
+        var g = event.getGuiGraphics();
+        SelfReviveHud.render(g);
+        if (!ModList.get().isLoaded("xaerominimap") && MatchView.get().running())
             MatchHud.render(g, Math.max(0, g.guiWidth() - 200), 8, 192);
-        }
     }
 }
