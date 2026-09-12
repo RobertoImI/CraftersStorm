@@ -35,7 +35,9 @@ public final class CraftersStorm {
         NeoForge.EVENT_BUS.addListener(this::serverStopped);
         NeoForge.EVENT_BUS.addListener(this::serverTick);
         NeoForge.EVENT_BUS.addListener(this::death);
-        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, this::deathCleanup);
+        // Must receive CraftersStorm's canceled final death so PlayerRevive's downed
+        // attachment can be cleaned after we convert the player to spectator.
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, true, this::deathCleanup);
         NeoForge.EVENT_BUS.addListener(this::incoming);
         NeoForge.EVENT_BUS.addListener(this::damaged);
         NeoForge.EVENT_BUS.addListener(this::login);
