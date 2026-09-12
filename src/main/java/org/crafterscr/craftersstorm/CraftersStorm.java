@@ -2,6 +2,7 @@ package org.crafterscr.craftersstorm;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import org.crafterscr.craftersstorm.compat.PlayerReviveCompat;
 import org.crafterscr.craftersstorm.match.*;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -34,6 +35,7 @@ public final class CraftersStorm {
         NeoForge.EVENT_BUS.addListener(this::serverStopped);
         NeoForge.EVENT_BUS.addListener(this::serverTick);
         NeoForge.EVENT_BUS.addListener(this::death);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, this::deathCleanup);
         NeoForge.EVENT_BUS.addListener(this::incoming);
         NeoForge.EVENT_BUS.addListener(this::damaged);
         NeoForge.EVENT_BUS.addListener(this::login);
@@ -66,6 +68,13 @@ public final class CraftersStorm {
 
     private void death(LivingDeathEvent e) {
         if (match != null) match.death(e);
+    }
+
+    private void deathCleanup(LivingDeathEvent e) {
+        if (match == null || !(e.getEntity() instanceof ServerPlayer p)) return;
+        MatchState.Member member = match.settings().members.get(p.getUUID());
+        if (member != null && member.status == MatchState.Status.ELIMINATED)
+            PlayerReviveCompat.clearBleedingAfterElimination(p);
     }
 
     private void incoming(LivingIncomingDamageEvent e) {
